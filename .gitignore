@@ -14,3 +14,7 @@ Thumbs.db
 # IDE
 .idea
 .vscode
+
+# secrets
+application.properties
+.env
