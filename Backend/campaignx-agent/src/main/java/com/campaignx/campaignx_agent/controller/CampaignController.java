@@ -65,4 +65,17 @@ public class CampaignController {
 
         return agentService.launchCampaign(plan);
     }
+
+    @PostMapping("/auto-run")
+    public AgentRunSummary autoRun(@RequestBody CampaignBrief request) {
+
+        return agentService.runOptimizedCampaign(
+                request.getBrief()
+        );
+    }
+
+    @PostMapping("/run-agent")
+    public AgentRunSummary runAgent(@RequestBody CampaignBrief req) {
+        return agentService.runOptimizedCampaign(req.getBrief());
+    }
 }

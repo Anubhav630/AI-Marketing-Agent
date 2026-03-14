@@ -22,7 +22,7 @@ public class Customer {
     @JsonProperty("Age")
     private int age;
 
-    // getters
+    // ===== GETTERS =====
 
     public String getCustomer_id() {
         return customer_id;
@@ -36,15 +36,41 @@ public class Customer {
         return gender;
     }
 
-    public int getCreditScore() {
+    public Integer getCreditScore() {
         return creditScore;
     }
 
-    public int getMonthlyIncome() {
+    public Integer getMonthlyIncome() {
         return monthlyIncome;
     }
 
-    public int getAge() {
+    public Integer getAge() {
         return age;
+    }
+
+    // ===== SETTERS =====
+
+    public void setCustomer_id(String customer_id) {
+        this.customer_id = customer_id;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public void setCreditScore(Integer creditScore) {
+        this.creditScore = creditScore;
+    }
+
+    public void setMonthlyIncome(Integer monthlyIncome) {
+        this.monthlyIncome = monthlyIncome;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
     }
 }

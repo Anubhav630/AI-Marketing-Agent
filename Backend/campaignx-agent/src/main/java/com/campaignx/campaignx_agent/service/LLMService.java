@@ -6,78 +6,120 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.*;
+
+
 
 @Service
 public class LLMService {
 
+    private final RestTemplate restTemplate = new RestTemplate();
+
     @Value("${openrouter.api.key}")
-    private String apiKey;
+    private String openRouterApiKey;
 
     @Value("${openrouter.api.url}")
-    private String apiUrl;
+    private String openRouterUrl;
 
     @Value("${openrouter.model}")
-    private String model;
-
-    private final RestTemplate restTemplate = new RestTemplate();
+    private String openRouterModel;
 
 
     public String callLLM(String prompt) {
 
-        Map<String,Object> request = new HashMap<>();
+        int maxRetries = 3;
 
-        request.put("model", model);
+        for(int attempt = 1; attempt <= maxRetries; attempt++) {
 
-        List<Map<String,String>> messages = new ArrayList<>();
+            try {
 
-        messages.add(Map.of(
-                "role","user",
-                "content",prompt
-        ));
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.setBearerAuth(openRouterApiKey);
 
-        request.put("messages", messages);
+                Map<String,Object> body = new HashMap<>();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + apiKey);
-        headers.set("HTTP-Referer", "http://localhost");
-        headers.set("X-Title", "CampaignX-Agent");
+                body.put("model", openRouterModel);
 
-        HttpEntity<Map<String,Object>> entity =
-                new HttpEntity<>(request, headers);
+                List<Map<String,String>> messages = new ArrayList<>();
 
-        ResponseEntity<Map> response =
-                restTemplate.postForEntity(apiUrl, entity, Map.class);
+                Map<String,String> msg = new HashMap<>();
+                msg.put("role", "user");
+                msg.put("content", prompt);
 
-        Map choice = (Map)((List)response.getBody().get("choices")).get(0);
-        Map message = (Map)choice.get("message");
+                messages.add(msg);
 
-        return (String) message.get("content");
+                body.put("messages", messages);
+                body.put("temperature", 0.7);
+                body.put("max_tokens", 300);
+
+                HttpEntity<Map<String,Object>> request =
+                        new HttpEntity<>(body, headers);
+
+                ResponseEntity<Map> response =
+                        restTemplate.postForEntity(openRouterUrl, request, Map.class);
+
+                Map result = response.getBody();
+
+                List choices = (List) result.get("choices");
+                Map choice = (Map) choices.get(0);
+                Map message = (Map) choice.get("message");
+
+                return message.get("content").toString();
+
+            } catch(Exception e) {
+
+                System.out.println("⚠ LLM call failed attempt " + attempt);
+
+                try { Thread.sleep(1500); } catch(Exception ex){}
+            }
+        }
+
+        // ⭐ FINAL FALLBACK RESPONSE
+        System.out.println("🚨 LLM completely failed → using fallback content");
+
+        return """
+    {
+      "subject": "Special Offer for Valued Customers",
+      "body": "Dear Customer, explore our new financial product designed to maximize your returns. Click below to learn more."
+    }
+    """;
     }
 
 
     public Strategy interpretBrief(String brief) {
 
         String prompt = """
-    You are an AI marketing planner.
+You are an AI banking marketing strategist.
 
-    Extract customer targeting filters from the campaign brief.
+Extract realistic customer targeting filters from campaign brief.
 
-    Return STRICT JSON.
+IMPORTANT DATA RULES:
+- Premium / Elite / Luxury → minCreditScore = 680
+- Good credit → minCreditScore = 620
+- High income / affluent → minIncome = 150000
+- Moderate income → minIncome = 80000
+- Women / female → gender = Female
+- Men / male → gender = Male
+- Senior citizens → age > 50 (ignore if age not supported)
+- City mentioned → set city
+- If not clearly implied → return null
 
-    Format:
+Return ONLY valid JSON.
 
-    {
-      "city": "city name or null",
-      "gender": "Male/Female or null",
-      "minIncome": number or null,
-      "minCreditScore": number or null
-    }
+FORMAT:
 
-    Campaign brief:
-    """ + brief;
+{
+ "city": "string or null",
+ "gender": "string or null",
+ "minIncome": number or null,
+ "minCreditScore": number or null
+}
+
+Campaign Brief:
+""" + brief;
 
         String response = callLLM(prompt);
 
@@ -87,29 +129,41 @@ public class LLMService {
 
             ObjectMapper mapper = new ObjectMapper();
 
-            response = response.replace("```json","")
-                    .replace("```","")
-                    .trim();
-
             int start = response.indexOf("{");
             int end = response.lastIndexOf("}") + 1;
-
             String json = response.substring(start, end);
 
             Map<String,Object> result =
                     mapper.readValue(json, Map.class);
 
-            strategy.setCity((String) result.get("city"));
-            strategy.setGender((String) result.get("gender"));
+            // CITY
+            Object cityObj = result.get("city");
+            if(cityObj instanceof String)
+                strategy.setCity((String) cityObj);
+            else if(cityObj instanceof List && !((List<?>) cityObj).isEmpty())
+                strategy.setCity(((List<?>) cityObj).get(0).toString());
 
-            if(result.get("minIncome") != null)
-                strategy.setMinIncome((Integer) result.get("minIncome"));
+            // GENDER
+            Object genderObj = result.get("gender");
+            if(genderObj instanceof String)
+                strategy.setGender((String) genderObj);
+            else if(genderObj instanceof List && !((List<?>) genderObj).isEmpty())
+                strategy.setGender(((List<?>) genderObj).get(0).toString());
 
+            // CREDIT SCORE
             if(result.get("minCreditScore") != null)
-                strategy.setMinCreditScore((Integer) result.get("minCreditScore"));
+                strategy.setMinCreditScore(
+                        ((Number) result.get("minCreditScore")).intValue()
+                );
+
+            // INCOME
+            if(result.get("minIncome") != null)
+                strategy.setMinIncome(
+                        ((Number) result.get("minIncome")).intValue()
+                );
 
         } catch(Exception e) {
-            e.printStackTrace();
+            System.out.println("LLM parse failed → fallback strategy");
         }
 
         return strategy;
@@ -118,26 +172,35 @@ public class LLMService {
     public EmailContent generateEmail(String brief, Strategy strategy) {
 
         String prompt = """
-        You are an AI marketing agent.
+You are an expert financial marketing copywriter AI.
 
-        Generate an email campaign.
+Write a persuasive, medium-length professional email.
 
-        IMPORTANT RULES:
-        - Return ONLY valid JSON
-        - Do NOT explain anything
-        - Do NOT use markdown
-        - Do NOT add notes
+Rules:
+- Premium banking tone
+- Clear benefits
+- Strong call-to-action
+- Not too long (120–180 words)
+- Not generic
+- Personalized to target segment
 
-        Format strictly:
+Return ONLY valid JSON.
 
-        {
-          "subject": "email subject",
-          "body": "email body"
-        }
+FORMAT:
 
-        Campaign brief:
-        """ + brief;
+{
+ "subject": "short premium catchy subject",
+ "body": "professional marketing email"
+}
 
+Campaign Context:
+""" + brief + """
+
+Target Segment Insight:
+City: """ + strategy.getCity() + """
+Gender: """ + strategy.getGender() + """
+Income Segment: """ + strategy.getMinIncome() + """
+Credit Segment: """ + strategy.getMinCreditScore();
         String response = callLLM(prompt);
 
         EmailContent email = new EmailContent();
@@ -146,39 +209,36 @@ public class LLMService {
 
             ObjectMapper mapper = new ObjectMapper();
 
-            // Remove markdown if LLM adds it
-            response = response.replace("```json", "")
-                    .replace("```", "")
-                    .trim();
-
-            // Find JSON boundaries
+            // extract JSON safely
             int start = response.indexOf("{");
-            int end = response.lastIndexOf("}") + 1;
+            int end = response.lastIndexOf("}");
 
-            if(start == -1 || end == -1) {
-                throw new RuntimeException("No JSON found in LLM response");
+            if(start != -1 && end != -1 && end > start){
+
+                String json = response.substring(start, end + 1);
+
+                Map<String,Object> map =
+                        mapper.readValue(json, Map.class);
+
+                if(map.get("subject") != null)
+                    email.setSubject(map.get("subject").toString());
+
+                if(map.get("body") != null)
+                    email.setBody(map.get("body").toString());
+            }
+            // ⭐ IF STILL EMPTY → USE RAW LLM TEXT AS BODY
+            if(email.getBody() == null){
+
+                email.setSubject("AI Generated Campaign");
+                email.setBody(response);
             }
 
-            String json = response.substring(start, end);
+        }
+        catch(Exception e){
 
-            Map<String, Object> result =
-                    mapper.readValue(json, Map.class);
+            System.out.println("⚠ Email JSON parse error → using raw LLM text");
 
-            String subject = result.get("subject") != null
-                    ? result.get("subject").toString()
-                    : "Campaign Offer";
-
-            String body = result.get("body") != null
-                    ? result.get("body").toString()
-                    : response;
-
-            email.setSubject(subject);
-            email.setBody(body);
-
-        } catch (Exception e) {
-
-            // fallback if parsing fails
-            email.setSubject("Campaign Offer");
+            email.setSubject("AI Generated Campaign");
             email.setBody(response);
         }
 
