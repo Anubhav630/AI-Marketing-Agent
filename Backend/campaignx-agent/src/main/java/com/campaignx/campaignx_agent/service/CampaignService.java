@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import com.campaignx.campaignx_agent.util.MockCustomerGenerator;
 
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -28,6 +29,8 @@ public class CampaignService {
     // ================= GET CUSTOMERS =================
     public CustomerCohortResponse getCustomers() {
 
+        System.out.println("API KEY VALUE → " + apiKey);
+
         try {
 
             String url = baseUrl + "/get_customer_cohort";
@@ -35,7 +38,7 @@ public class CampaignService {
             HttpHeaders headers = new HttpHeaders();
             headers.set("X-API-Key", apiKey);
 
-            HttpEntity<String> entity = new HttpEntity<>(headers);
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
 
             ResponseEntity<CustomerCohortResponse> response =
                     restTemplate.exchange(
@@ -72,12 +75,16 @@ public class CampaignService {
             HttpEntity<SendCampaignRequest> entity =
                     new HttpEntity<>(request, headers);
 
-            ResponseEntity<String> response =
-                    restTemplate.postForEntity(url, entity, String.class);
+            ResponseEntity<Map> response =
+                    restTemplate.postForEntity(url, entity, Map.class);
 
-            System.out.println("✅ Campaign sent successfully");
+            Map body = response.getBody();
 
-            return response.getBody();
+            String campaignId = body.get("campaign_id").toString();
+
+            System.out.println("✅ Real CampaignId → " + campaignId);
+
+            return campaignId;
 
         } catch (Exception ex) {
 
@@ -92,6 +99,8 @@ public class CampaignService {
     public CampaignReportResponse getCampaignReport(String campaignId) {
 
         try {
+
+            System.out.println("📡 Fetching report for campaignId → " + campaignId);
 
             String url = baseUrl + "/get_report?campaign_id=" + campaignId;
 

@@ -463,109 +463,184 @@ Campaign Brief:
         return strategy;
     }
 
-    public EmailContent generateEmail(String brief, Strategy strategy) {
-
-        String prompt = """
-You are a senior banking marketing copywriter.
-
-Write a premium persuasive email.
-
-Constraints:
-- 120–160 words
-- Strong CTA
-- Not generic
-- Focus on benefits
-- Personalized to segment
-
-Return ONLY JSON.
-
-{
- "subject": "...",
- "body": "..."
-}
-
-Campaign Brief:
-""" + brief;
-
-        String response = callLLM(prompt);
-
-        EmailContent email = new EmailContent();
-
+//    public EmailContent generateEmail(String brief, Strategy strategy) {
+//
+//        String prompt = """
+//You are a senior banking marketing copywriter.
+//
+//Write a premium persuasive email.
+//
+//Constraints:
+//- 120–160 words
+//- Strong CTA
+//- Not generic
+//- Focus on benefits
+//- Personalized to segment
+//
+//Return ONLY JSON.
+//
+//{
+// "subject": "...",
+// "body": "..."
+//}
+//
+//Campaign Brief:
+//""" + brief;
+//
+//        String response = callLLM(prompt);
+//
+//        EmailContent email = new EmailContent();
+//
+////        try {
+////
+////            ObjectMapper mapper = new ObjectMapper();
+////
+////            String clean = response
+////                    .replace("```json","")
+////                    .replace("```","")
+////                    .trim();
+////
+////            Map<String,Object> map =
+////                    mapper.readValue(clean, Map.class);
+////
+////            email.setSubject(map.get("subject").toString());
+////            email.setBody(map.get("body").toString());
+////
+////        } catch (Exception ex){
+////
+////            System.out.println("⚠ Email parse failed → fallback smart template");
+////
+////            email.setSubject("Exclusive Financial Opportunity");
+////            email.setBody(
+////                    "Dear Customer,\n\n" +
+////                            "We are excited to introduce a premium financial solution designed " +
+////                            "to enhance your wealth growth while ensuring stability and flexibility. " +
+////                            "Enjoy higher returns, seamless digital experience, and dedicated support.\n\n" +
+////                            "Click here to explore more.\n\n" +
+////                            "Regards,\nBank Team"
+////            );
+////        }
+//
+//        System.out.println("===== RAW LLM EMAIL RESPONSE =====");
+//        System.out.println(response);
+//        System.out.println("==================================");
+//
 //        try {
 //
 //            ObjectMapper mapper = new ObjectMapper();
 //
-//            String clean = response
-//                    .replace("```json","")
-//                    .replace("```","")
+//            String cleaned = response
+//                    .replace("```json", "")
+//                    .replace("```", "")
 //                    .trim();
 //
+//            int start = cleaned.indexOf("{");
+//            int end = cleaned.lastIndexOf("}");
+//
+//            if(start == -1 || end == -1){
+//                throw new RuntimeException("No JSON found in LLM response");
+//            }
+//
+//            String json = cleaned.substring(start, end + 1);
+//
 //            Map<String,Object> map =
-//                    mapper.readValue(clean, Map.class);
+//                    mapper.readValue(json, Map.class);
 //
-//            email.setSubject(map.get("subject").toString());
-//            email.setBody(map.get("body").toString());
+//            Object subjectObj = map.get("subject");
+//            Object bodyObj = map.get("body");
 //
-//        } catch (Exception ex){
+//            if(subjectObj == null || bodyObj == null){
+//                throw new RuntimeException("Missing subject/body");
+//            }
+//
+//            email.setSubject(subjectObj.toString());
+//            email.setBody(bodyObj.toString());
+//
+//        }
+//        catch(Exception ex){
 //
 //            System.out.println("⚠ Email parse failed → fallback smart template");
 //
 //            email.setSubject("Exclusive Financial Opportunity");
 //            email.setBody(
 //                    "Dear Customer,\n\n" +
-//                            "We are excited to introduce a premium financial solution designed " +
-//                            "to enhance your wealth growth while ensuring stability and flexibility. " +
-//                            "Enjoy higher returns, seamless digital experience, and dedicated support.\n\n" +
-//                            "Click here to explore more.\n\n" +
+//                            "Discover our premium banking solution designed to maximize " +
+//                            "returns while ensuring flexibility and digital convenience.\n\n" +
+//                            "Click to explore now.\n\n" +
 //                            "Regards,\nBank Team"
 //            );
 //        }
-        try {
+//        return email;
+//    }
 
-            ObjectMapper mapper = new ObjectMapper();
+public EmailContent generateEmail(String brief, Strategy strategy) {
 
-            int start = response.indexOf("{");
-            int end = response.lastIndexOf("}");
+    String prompt = """
+You are a senior banking marketing copywriter.
 
-            if(start != -1 && end != -1 && end > start){
+Write a premium persuasive email.
 
-                String json = response.substring(start, end + 1);
+STRICT RULE:
+Return ONLY this format:
 
-                Map<String,Object> map =
-                        mapper.readValue(json, Map.class);
+SUBJECT: <short subject>
+BODY: <email content>
 
-                email.setSubject(
-                        map.getOrDefault("subject",
-                                "Exclusive Financial Opportunity").toString()
-                );
+Campaign Brief:
+""" + brief;
 
-                email.setBody(
-                        map.getOrDefault("body",
-                                "Explore our premium banking solution.").toString()
-                );
+    String response = callLLM(prompt);
 
-            } else {
+    System.out.println("===== RAW LLM EMAIL RESPONSE =====");
+    System.out.println(response);
+    System.out.println("==================================");
 
-                throw new RuntimeException("JSON block not found");
+    EmailContent email = new EmailContent();
+
+    try {
+
+        String subject = null;
+        String body = null;
+
+        String[] lines = response.split("\n");
+
+        for(String line : lines){
+
+            if(line.toLowerCase().startsWith("subject:")){
+                subject = line.substring(8).trim();
             }
 
-        }
-        catch (Exception ex){
-
-            System.out.println("⚠ Email parse failed → fallback smart template");
-
-            email.setSubject("Exclusive Financial Opportunity");
-            email.setBody(
-                    "Dear Customer,\n\n" +
-                            "We are excited to introduce a premium financial solution designed " +
-                            "to enhance your wealth growth while ensuring stability.\n\n" +
-                            "Click here to explore more.\n\n" +
-                            "Regards,\nBank Team"
-            );
+            if(line.toLowerCase().startsWith("body:")){
+                body = response.substring(response.toLowerCase().indexOf("body:") + 5).trim();
+                break;
+            }
         }
 
-        return email;
+        if(subject == null || body == null){
+            throw new RuntimeException("AI format not respected");
+        }
+
+        email.setSubject(subject);
+        email.setBody(body);
+
     }
+    catch(Exception ex){
+
+        System.out.println("⚠ Email parse failed → fallback smart template");
+
+        email.setSubject("Exclusive Financial Opportunity");
+        email.setBody(
+                "Dear Customer,\n\n" +
+                        "We are delighted to introduce a premium financial solution " +
+                        "designed to enhance your savings growth with stability and " +
+                        "digital convenience.\n\n" +
+                        "Click below to explore more.\n\n" +
+                        "Regards,\nBank Team"
+        );
+    }
+
+    return email;
+}
 
 
     public String optimizeCampaign(CampaignMetrics metrics){
