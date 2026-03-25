@@ -19,63 +19,28 @@ public class CampaignController {
         this.agentService = agentService;
     }
 
-    // existing endpoint
+    // ⭐ Fetch dataset (for dashboard table preview)
     @GetMapping("/customers")
     public CustomerCohortResponse getCustomers() {
         return campaignService.getCustomers();
     }
 
-    // NEW AGENT ENDPOINT
+    // ⭐ STEP 1 — AI generates targeting + email preview
     @PostMapping("/plan")
     public CampaignPlan createCampaignPlan(@RequestBody CampaignBrief request) {
-
         return agentService.generateCampaignPlan(request.getBrief());
     }
 
-    @PostMapping("/send")
-    public String sendCampaign(@RequestBody CampaignPlan plan) {
-
-        return agentService.launchCampaign(plan);
-    }
-
-    @GetMapping("/report")
-    public CampaignReportResponse getReport(@RequestParam String campaign_id) {
-
-        return agentService.fetchCampaignReport(campaign_id);
-    }
-
-    @PostMapping("/optimize")
-    public EmailContent optimizeCampaign(@RequestParam String campaign_id) {
-
-        CampaignReportResponse report =
-                agentService.fetchCampaignReport(campaign_id);
-
-        CampaignMetrics metrics =
-                agentService.analyzeReport(report.getData());
-
-        return agentService.generateImprovedEmail(
-                metrics,
-                report.getData().get(0).getSubject(),
-                report.getData().get(0).getBody()
-        );
-    }
-
+    // ⭐ STEP 2 — Human approves & campaign launched
     @PostMapping("/approve")
     public String approveCampaign(@RequestBody CampaignPlan plan) {
-
         return agentService.launchCampaign(plan);
     }
 
-    @PostMapping("/auto-run")
-    public AgentRunSummary autoRun(@RequestBody CampaignBrief request) {
-
-        return agentService.runOptimizedCampaign(
-                request.getBrief()
-        );
-    }
-
+    // ⭐ STEP 3 — FULL AGENT LOOP (auto optimize + metrics engine)
     @PostMapping("/run-agent")
     public AgentRunSummary runAgent(@RequestBody CampaignBrief req) {
         return agentService.runOptimizedCampaign(req.getBrief());
     }
+
 }

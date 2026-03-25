@@ -1,132 +1,37 @@
 package com.campaignx.campaignx_agent.service;
 
 import com.campaignx.campaignx_agent.model.*;
-import com.campaignx.campaignx_agent.util.MockReportGenerator;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
+import com.campaignx.campaignx_agent.util.CsvCustomerLoader;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import com.campaignx.campaignx_agent.util.MockCustomerGenerator;
 
-import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class CampaignService {
 
-    private final RestTemplate restTemplate;
-
-    @Value("${campaignx.api.base-url}")
-    private String baseUrl;
-
-    @Value("${campaignx.api.key}")
-    private String apiKey;
-
-    public CampaignService(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
-
-    // ================= GET CUSTOMERS =================
+    // ⭐ OFFLINE CUSTOMER SOURCE
     public CustomerCohortResponse getCustomers() {
 
-        System.out.println("API KEY VALUE → " + apiKey);
-
-        try {
-
-            String url = baseUrl + "/get_customer_cohort";
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-API-Key", apiKey);
-
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
-
-            ResponseEntity<CustomerCohortResponse> response =
-                    restTemplate.exchange(
-                            url,
-                            HttpMethod.GET,
-                            entity,
-                            CustomerCohortResponse.class
-                    );
-
-            System.out.println("✅ Customer API success");
-
-            return response.getBody();
-
-        } catch (Exception ex) {
-
-            System.out.println("⚠ Customer API FAILED → using MOCK customers");
-
-            // ⭐ CORRECT mock fallback
-            return MockCustomerGenerator.generate();
-        }
+        System.out.println("📂 Loading customers from CSV dataset");
+        return CsvCustomerLoader.loadCustomers();
     }
 
-    // ================= SEND CAMPAIGN =================
+    // ⭐ FULLY MOCK CAMPAIGN SEND
     public String sendCampaign(SendCampaignRequest request) {
 
-        try {
+        String campaignId = "MOCK_CAMPAIGN_" + UUID.randomUUID();
 
-            String url = baseUrl + "/send_campaign";
+        System.out.println("✅ Mock Campaign Launched → " + campaignId);
+        System.out.println("📊 Target Customers Count → "
+                + request.getList_customer_ids().size());
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-API-Key", apiKey);
-            headers.setContentType(MediaType.APPLICATION_JSON);
-
-            HttpEntity<SendCampaignRequest> entity =
-                    new HttpEntity<>(request, headers);
-
-            ResponseEntity<Map> response =
-                    restTemplate.postForEntity(url, entity, Map.class);
-
-            Map body = response.getBody();
-
-            String campaignId = body.get("campaign_id").toString();
-
-            System.out.println("✅ Real CampaignId → " + campaignId);
-
-            return campaignId;
-
-        } catch (Exception ex) {
-
-            System.out.println("⚠ Campaign API FAILED → simulating campaignId");
-
-            // ⭐ simulate campaign id for LOOP demo
-            return "SIM_CAMPAIGN_" + UUID.randomUUID();
-        }
+        return campaignId;
     }
 
-    // ================= GET REPORT =================
+    // ⭐ NO REAL REPORT API NOW
     public CampaignReportResponse getCampaignReport(String campaignId) {
 
-        try {
-
-            System.out.println("📡 Fetching report for campaignId → " + campaignId);
-
-            String url = baseUrl + "/get_report?campaign_id=" + campaignId;
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-API-Key", apiKey);
-
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-
-            ResponseEntity<CampaignReportResponse> response =
-                    restTemplate.exchange(
-                            url,
-                            HttpMethod.GET,
-                            entity,
-                            CampaignReportResponse.class
-                    );
-
-            System.out.println("✅ Report API success");
-
-            return response.getBody();
-
-        } catch (Exception ex) {
-
-            System.out.println("⚠ Report API FAILED → generating MOCK report");
-
-            // ⭐ mock report so LOOP optimization works
-            return MockReportGenerator.generateMockReport();
-        }
+        System.out.println("⚡ Offline Mode → Report handled by Metrics Engine");
+        return null;
     }
 }
