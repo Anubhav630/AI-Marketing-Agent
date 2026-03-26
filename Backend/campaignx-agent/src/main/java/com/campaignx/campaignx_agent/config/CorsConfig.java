@@ -2,10 +2,12 @@ package com.campaignx.campaignx_agent.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.*;
+import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class CorsConfig {
+
 
     @Bean
     public WebMvcConfigurer corsConfigurer() {
@@ -16,10 +18,12 @@ public class CorsConfig {
             public void addCorsMappings(CorsRegistry registry) {
 
                 registry.addMapping("/**")
-                        .allowedOrigins("http://localhost:5173")
+                        .allowedOrigins("*")   // allow all origins (for cloud frontend + testing)
                         .allowedMethods("*")
                         .allowedHeaders("*");
             }
         };
     }
+
+
 }
