@@ -1,28 +1,28 @@
-import Toast from './Toast';
+import { useState, useEffect } from 'react';
 
-export default function ToastContainer({ toasts, onDismiss }) {
+export default function Toast({ id, message, variant, onDismiss }) {
+    const [visible, setVisible] = useState(false);
+    const [leaving, setLeaving] = useState(false);
+
+    // Slide in on mount
+    useEffect(() => {
+        const frame = requestAnimationFrame(() => setVisible(true));
+        return () => cancelAnimationFrame(frame);
+    }, []);
+
+    function handleDismiss() {
+        setLeaving(true);
+        setTimeout(() => onDismiss(id), 200);
+    }
+
     return (
         <div
-            className="toast-container"
-            style={{
-                position: 'fixed',
-                bottom: 'var(--space-6)',
-                right: 'var(--space-6)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 'var(--space-2)',
-                zIndex: 1000,
-            }}
+            className={`toast toast--${variant}${visible ? ' toast--visible' : ''}${leaving ? ' toast--leaving' : ''}`}
+            onClick={handleDismiss}
+            role="alert"
+            aria-live="polite"
         >
-            {toasts.map((toast) => (
-                <Toast
-                    key={toast.id}
-                    id={toast.id}
-                    message={toast.message}
-                    variant={toast.variant}
-                    onDismiss={onDismiss}
-                />
-            ))}
+            {message}
         </div>
     );
 }

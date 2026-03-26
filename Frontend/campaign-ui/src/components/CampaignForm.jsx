@@ -68,7 +68,7 @@ export default function CampaignForm({ onGenerate, addToast }) {
 
     try {
 
-      const response = await fetch("http://localhost:8080/campaign/plan", {
+      const response = await fetch("https://ai-marketing-agent-1anc.onrender.com/campaign/plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brief }),
@@ -107,7 +107,7 @@ export default function CampaignForm({ onGenerate, addToast }) {
 
     try {
 
-      const response = await fetch("http://localhost:8080/campaign/run-agent", {
+      const response = await fetch("https://ai-marketing-agent-1anc.onrender.com/campaign/run-agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brief }),

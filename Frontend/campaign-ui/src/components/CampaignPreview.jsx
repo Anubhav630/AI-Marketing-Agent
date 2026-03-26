@@ -76,7 +76,7 @@ export default function CampaignPreview({ plan, onReject, addToast }) {
   const handleSend = async () => {
     setSending(true);
     try {
-      const response = await fetch("http://localhost:8080/campaign/send", {
+      const response = await fetch("https://ai-marketing-agent-1anc.onrender.com/campaign/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(plan),
